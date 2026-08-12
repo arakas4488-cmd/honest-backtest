@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Honest Backtest — Code Audits for Algorithmic Trading Bots</title>
+<meta name="description" content="Independent code audits for algorithmic trading bots. Real commissions, real bugs, real backtests — not marketing curves.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230f3d31'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%23e8e2d0' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#f5f2ea;
+    --paper-alt:#eeeade;
+    --ink:#1c1c1a;
+    --ink-soft:#4a4944;
+    --line:#d8d2c0;
+    --ledger:#0f3d31;
+    --ledger-soft:#e6efe9;
+    --stamp:#a3312a;
+    --stamp-soft:#f6e6e4;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    --serif: Georgia, 'Times New Roman', serif;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#15211c;
+      --paper-alt:#1a2a23;
+      --ink:#e9e5d8;
+      --ink-soft:#b7b3a4;
+      --line:#2c3d34;
+      --ledger:#4fae8c;
+      --ledger-soft:#1c332a;
+      --stamp:#d6746c;
+      --stamp-soft:#33201e;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    line-height:1.55;
+  }
+  a{color:inherit;}
+  .wrap{max-width:980px;margin:0 auto;padding:0 24px;}
+  header.site{
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+    position:sticky;top:0;z-index:10;
+  }
+  .nav{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 0;
+  }
+  .brand{
+    display:flex;align-items:center;gap:10px;
+    font-family:var(--serif);font-weight:700;font-size:20px;
+    text-decoration:none;color:var(--ink);
+  }
+  .brand .mark{
+    width:32px;height:32px;border-radius:6px;background:var(--ledger);
+    color:var(--paper);display:flex;align-items:center;justify-content:center;
+    font-family:var(--serif);font-weight:700;font-size:15px;
+  }
+  nav.links{display:flex;gap:24px;font-size:14px;}
+  nav.links a{text-decoration:none;color:var(--ink-soft);}
+  nav.links a:hover{color:var(--ink);}
+  .btn{
+    display:inline-block;padding:10px 18px;border-radius:4px;
+    font-size:14px;font-weight:600;text-decoration:none;
+    border:1px solid var(--ledger);
+  }
+  .btn-primary{background:var(--ledger);color:var(--paper);}
+  .btn-ghost{background:transparent;color:var(--ledger);}
+  .btn-primary:hover{opacity:.9;}
+  .btn-ghost:hover{background:var(--ledger-soft);}
+
+  section{padding:64px 0;}
+  section.alt{background:var(--paper-alt);}
+  .kicker{
+    font-family:var(--mono);font-size:12px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--stamp);margin:0 0 12px;
+  }
+  h1{font-family:var(--serif);font-size:44px;line-height:1.15;margin:0 0 20px;max-width:720px;}
+  h2{font-family:var(--serif);font-size:30px;margin:0 0 28px;}
+  .lede{font-size:18px;color:var(--ink-soft);max-width:620px;margin:0 0 32px;}
+
+  .stats{display:flex;gap:40px;flex-wrap:wrap;margin-top:40px;}
+  .stat .num{font-family:var(--mono);font-size:28px;font-weight:700;color:var(--ledger);}
+  .stat .label{font-size:13px;color:var(--ink-soft);}
+
+  .cta-row{display:flex;gap:14px;flex-wrap:wrap;}
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  @media (max-width:820px){.cards{grid-template-columns:1fr;}}
+  .card{
+    border:1px solid var(--line);border-radius:8px;background:var(--paper);
+    padding:28px;display:flex;flex-direction:column;
+  }
+  .card .price{font-family:var(--mono);font-size:26px;font-weight:700;margin:6px 0 14px;}
+  .card h3{font-family:var(--serif);font-size:20px;margin:0;}
+  .card ul{padding-left:18px;margin:0 0 22px;color:var(--ink-soft);font-size:14px;flex:1;}
+  .card li{margin-bottom:6px;}
+  .card .btn{align-self:flex-start;}
+
+  .case{
+    border:1px solid var(--line);border-radius:8px;background:var(--paper);
+    padding:28px;margin-bottom:20px;
+  }
+  .case .tag{
+    display:inline-block;font-family:var(--mono);font-size:11px;letter-spacing:.06em;
+    text-transform:uppercase;color:var(--ledger);background:var(--ledger-soft);
+    padding:3px 8px;border-radius:3px;margin-bottom:12px;
+  }
+  .case h3{font-family:var(--serif);font-size:22px;margin:0 0 10px;}
+  .case p{color:var(--ink-soft);margin:0 0 16px;font-size:15px;}
+  .verdict{
+    font-family:var(--mono);font-size:15px;background:var(--stamp-soft);color:var(--stamp);
+    border-radius:4px;padding:10px 14px;display:inline-block;margin-bottom:16px;font-weight:700;
+  }
+  .case .links{display:flex;gap:14px;font-size:14px;}
+  .case .links a{color:var(--ledger);font-weight:600;text-decoration:none;}
+  .case .links a:hover{text-decoration:underline;}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+  @media (max-width:820px){.steps{grid-template-columns:1fr;}}
+  .step .n{font-family:var(--mono);color:var(--stamp);font-weight:700;font-size:14px;margin-bottom:8px;}
+  .step h4{font-family:var(--serif);font-size:18px;margin:0 0 8px;}
+  .step p{color:var(--ink-soft);font-size:14px;margin:0;}
+
+  .about{display:flex;gap:36px;flex-wrap:wrap;align-items:flex-start;}
+  .about p{color:var(--ink-soft);max-width:560px;}
+
+  footer{
+    border-top:1px solid var(--line);padding:40px 0;background:var(--paper-alt);
+    font-size:14px;color:var(--ink-soft);
+  }
+  footer .foot-row{display:flex;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+  footer a{text-decoration:none;color:var(--ink-soft);}
+  footer a:hover{color:var(--ledger);}
+  footer .disclaimer{margin-top:24px;font-size:12px;max-width:700px;}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="#top">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="#services">Services</a>
+      <a href="#cases">Case Studies</a>
+      <a href="#about">About</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<section id="top">
+  <div class="wrap">
+    <p class="kicker">Independent code audits · algorithmic trading bots</p>
+    <h1>Your backtest is lying to you. I find out how.</h1>
+    <p class="lede">I review the actual code — entry/exit logic, order management, risk handling —
+    and re-run your backtest with realistic commissions and execution assumptions. Not a
+    recalculated Sharpe ratio. Not marketing copy.</p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">See audit packages</a>
+      <a class="btn btn-ghost" href="#cases">Read the case studies</a>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num">40+</div><div class="label">responsible-disclosure issues<br>filed on live trading bots</div></div>
+      <div class="stat"><div class="num">2</div><div class="label">public, numbers-shown<br>case studies</div></div>
+      <div class="stat"><div class="num">1</div><div class="label">bot I ran with my own<br>capital before auditing yours</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="services" class="alt">
+  <div class="wrap">
+    <p class="kicker">Services</p>
+    <h2>Three ways to find out what your numbers actually say</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>Honest Backtest Toolkit</h3>
+        <div class="price">$19</div>
+        <ul>
+          <li>Self-serve methodology and checklist</li>
+          <li>How to re-run your own backtest with real fees/slippage</li>
+          <li>Common curve-fitting traps to check for yourself</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://whop.com/honest-backtest/honest-backtest-toolkit/" target="_blank" rel="noopener">Get the toolkit</a>
+      </div>
+      <div class="card">
+        <h3>Custom Backtest Audit</h3>
+        <div class="price">$149</div>
+        <ul>
+          <li>Your existing backtest re-run with realistic commissions</li>
+          <li>Curve-fit check across market regimes</li>
+          <li>Written verdict: is the edge real?</li>
+        </ul>
+        <a class="btn btn-ghost" href="https://whop.com/honest-backtest/custom-backtest-audit/" target="_blank" rel="noopener">Order an audit</a>
+      </div>
+      <div class="card">
+        <h3>Full Bot Audit</h3>
+        <div class="price">$298</div>
+        <ul>
+          <li>Full code review: entry/exit, stop-loss/take-profit, order TIF, sizing</li>
+          <li>Fee-honest backtest recalculation</li>
+          <li>Data-path check for silent risk-check failures</li>
+          <li>Ranked findings, critical → info, each with a fix</li>
+        </ul>
+        <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get a full audit</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="cases">
+  <div class="wrap">
+    <p class="kicker">Case Studies</p>
+    <h2>Same methodology, shown in public, with real numbers</h2>
+
+    <div class="case">
+      <span class="tag">Case Study 01 · Public repo</span>
+      <h3>Freqtrade's official SampleStrategy</h3>
+      <p>Audited the strategy template new Freqtrade users copy first. Real 3-year backtest on
+      real Binance data, 5 pairs, 5-minute candles.</p>
+      <div class="verdict">−9.71% without fees → −70.59% with real Binance commission, while the market rose 405.73% over the same period</div>
+      <p>7 ranked code findings, including a stop-loss that was never actually sent to the exchange.</p>
+      <div class="links">
+        <a href="https://claude.ai/code/artifact/08ad5829-892b-4f8c-b512-94a0d132cc5e" target="_blank" rel="noopener">Read the full report →</a>
+        <a href="assets/case_study_01.pdf" target="_blank">Download PDF</a>
+      </div>
+    </div>
+
+    <div class="case">
+      <span class="tag">Case Study 02 · My own bot</span>
+      <h3>Auditing the system I trade with</h3>
+      <p>Before offering this to anyone else, I audited my own live options/equity bot the same way.</p>
+      <div class="verdict">Expected +0.254R on paper → −1.366R once real round-trip commission was counted</div>
+      <p>Plus three real production bugs found in the live git history: stop orders that expired
+      overnight (TIF=DAY), stop/target levels computed from the signal price instead of the actual
+      fill, and a hardcoded exchange assumption that silently broke risk checks for one symbol.</p>
+      <div class="links">
+        <a href="https://claude.ai/code/artifact/f31bba22-2366-4776-a460-5d268b5673dc" target="_blank" rel="noopener">Read the full report →</a>
+        <a href="assets/case_study_02.pdf" target="_blank">Download PDF</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="alt">
+  <div class="wrap">
+    <p class="kicker">Process</p>
+    <h2>How an audit actually runs</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="n">01</div>
+        <h4>You send the code</h4>
+        <p>Strategy code or repo access, plus whatever backtest data or results you already have.</p>
+      </div>
+      <div class="step">
+        <div class="n">02</div>
+        <h4>Written report within a week</h4>
+        <p>Ranked findings, critical to informational, each with the specific fix — not a vague score.</p>
+      </div>
+      <div class="step">
+        <div class="n">03</div>
+        <h4>One round of follow-up</h4>
+        <p>Questions about any finding are included, no extra charge.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="about">
+  <div class="wrap about">
+    <div>
+      <p class="kicker">About</p>
+      <h2>Founder, Honest Backtest</h2>
+      <p>I'm Valerii Sakara. I built and ran a real algorithmic trading bot on Interactive Brokers
+      before turning the same review process into an audit service — the honest-fee backtest and
+      the bug list in Case Study 02 above are from that system, not a demo. I've since filed
+      40+ public, responsible-disclosure issues against other open-source trading bots, looking
+      for the same class of bug: code that behaves differently than the README or the backtest
+      claims it does.</p>
+      <p><a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+      &nbsp;·&nbsp;
+      <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a></p>
+    </div>
+  </div>
+</section>
+
+<footer id="contact">
+  <div class="wrap">
+    <div class="foot-row">
+      <div>
+        <strong>Honest Backtest</strong><br>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store</a><br>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn</a><br>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.</p>
+  </div>
+</footer>
+
+</body>
+</html>
