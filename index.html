@@ -117,6 +117,17 @@
   .hero .lede{color:var(--on-dark-soft);font-size:17px;margin-bottom:28px;max-width:560px;}
   .hero .btn-ghost{color:var(--on-dark);border-color:var(--on-dark-soft);}
   .hero .btn-ghost:hover{background:rgba(245,242,234,.08);}
+  @media (max-width:760px){
+    .hero{
+      background-image:
+        linear-gradient(180deg, rgba(6,13,20,.55), rgba(6,13,20,.75) 55%, rgba(6,13,20,.93)),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg stroke='%234dd9d4' stroke-width='1' fill='none' opacity='0.12'%3E%3Cline x1='12' y1='20' x2='58' y2='44'/%3E%3Cline x1='58' y1='44' x2='40' y2='96'/%3E%3Cline x1='58' y1='44' x2='112' y2='30'/%3E%3Cline x1='112' y1='30' x2='128' y2='84'/%3E%3Cline x1='40' y1='96' x2='90' y2='118'/%3E%3C/g%3E%3Cg fill='%234dd9d4' opacity='0.3'%3E%3Ccircle cx='12' cy='20' r='2'/%3E%3Ccircle cx='58' cy='44' r='2.2'/%3E%3Ccircle cx='112' cy='30' r='2'/%3E%3Ccircle cx='40' cy='96' r='2'/%3E%3Ccircle cx='128' cy='84' r='2'/%3E%3Ccircle cx='90' cy='118' r='2'/%3E%3C/g%3E%3C/svg%3E"),
+        url("assets/images/hero-hologram.jpg");
+      background-size:100% 100%, 140px 140px, 55% auto;
+      background-position:0 0, 0 0, 105% -10px;
+      background-repeat:no-repeat, repeat, no-repeat;
+    }
+  }
   .scroll-cue{
     display:flex;justify-content:center;padding:28px 0 20px;opacity:.55;
   }
