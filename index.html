@@ -5,37 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Honest Backtest — Code Audits for Algorithmic Trading Bots</title>
 <meta name="description" content="Independent code audits for algorithmic trading bots. Real commissions, real bugs, real backtests — not marketing curves.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230f3d31'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%23e8e2d0' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
 <style>
   :root{
-    --paper:#f5f2ea;
-    --paper-alt:#eeeade;
-    --ink:#1c1c1a;
-    --ink-soft:#4a4944;
-    --line:#d8d2c0;
-    --ledger:#0f3d31;
-    --ledger-deep:#0a2e25;
-    --ledger-soft:#e6efe9;
-    --stamp:#a3312a;
-    --stamp-soft:#f6e6e4;
-    --on-dark:#f5f2ea;
-    --on-dark-soft:#b9c9c1;
+    --paper:#eef2f4;
+    --paper-alt:#e2e9ec;
+    --ink:#101d27;
+    --ink-soft:#516470;
+    --line:#ccd7dc;
+    --ledger:#136e83;
+    --ledger-deep:#0a1b2a;
+    --ledger-soft:#dcedf0;
+    --stamp:#ac352b;
+    --stamp-soft:#f6e3e1;
+    --on-dark:#eef6f6;
+    --on-dark-soft:#9ab3bc;
+    --glow:#4dd9d4;
     --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     --serif: Georgia, 'Times New Roman', serif;
     --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
   @media (prefers-color-scheme: dark){
     :root{
-      --paper:#15211c;
-      --paper-alt:#1a2a23;
-      --ink:#e9e5d8;
-      --ink-soft:#b7b3a4;
-      --line:#2c3d34;
-      --ledger:#4fae8c;
-      --ledger-deep:#0a2e25;
-      --ledger-soft:#1c332a;
-      --stamp:#d6746c;
-      --stamp-soft:#33201e;
+      --paper:#0f1a22;
+      --paper-alt:#14222b;
+      --ink:#e7eef0;
+      --ink-soft:#9bb0b8;
+      --line:#25363f;
+      --ledger:#4dd9d4;
+      --ledger-deep:#08141f;
+      --ledger-soft:#173139;
+      --stamp:#df8078;
+      --stamp-soft:#3a201d;
     }
   }
   *{box-sizing:border-box;}
@@ -102,7 +103,7 @@
   .hero{
     background:var(--ledger-deep);
     background-image:
-      linear-gradient(180deg, rgba(8,26,21,.72), rgba(8,20,17,.88) 60%, rgba(8,20,17,.97)),
+      linear-gradient(180deg, rgba(8,18,28,.72), rgba(7,15,23,.88) 60%, rgba(7,15,23,.97)),
       url("assets/images/hero-candlestick.jpg");
     background-repeat:no-repeat;
     background-size:cover;
@@ -110,7 +111,7 @@
     color:var(--on-dark);
     padding:88px 0 0;
   }
-  .hero .kicker{color:#e8a49c;}
+  .hero .kicker{color:var(--glow);}
   .hero h1{color:var(--on-dark);}
   .hero .lede{color:var(--on-dark-soft);}
   .hero .btn-ghost{color:var(--on-dark);border-color:var(--on-dark-soft);}
@@ -121,7 +122,12 @@
   .scroll-cue svg{width:20px;height:20px;}
 
   /* Trust strip */
-  .trust-strip{background:var(--ledger);color:var(--on-dark);padding:0;}
+  .trust-strip{
+    background-color:var(--ledger-deep);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg stroke='%234dd9d4' stroke-width='1' fill='none' opacity='0.14'%3E%3Cline x1='12' y1='20' x2='58' y2='44'/%3E%3Cline x1='58' y1='44' x2='40' y2='96'/%3E%3Cline x1='58' y1='44' x2='112' y2='30'/%3E%3Cline x1='112' y1='30' x2='128' y2='84'/%3E%3Cline x1='40' y1='96' x2='90' y2='118'/%3E%3C/g%3E%3Cg fill='%234dd9d4' opacity='0.35'%3E%3Ccircle cx='12' cy='20' r='2'/%3E%3Ccircle cx='58' cy='44' r='2.2'/%3E%3Ccircle cx='112' cy='30' r='2'/%3E%3Ccircle cx='40' cy='96' r='2'/%3E%3Ccircle cx='128' cy='84' r='2'/%3E%3Ccircle cx='90' cy='118' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:repeat;
+    color:var(--on-dark);padding:0;
+  }
   .trust-strip .wrap{
     display:grid;grid-template-columns:repeat(3,1fr);gap:0;
   }
@@ -133,13 +139,16 @@
   .trust-item:first-child{border-left:none;}
   @media (max-width:820px){.trust-item{border-left:none;border-top:1px solid rgba(245,242,234,.14);}
     .trust-item:first-child{border-top:none;}}
-  .trust-item svg{color:#e8a49c;margin-top:2px;}
+  .trust-item svg{color:var(--glow);margin-top:2px;}
   .trust-item strong{display:block;font-size:14px;margin-bottom:2px;}
   .trust-item span{display:block;font-size:13px;color:var(--on-dark-soft);}
 
   /* Stat band */
   .stat-band{
-    background:var(--ledger-deep);color:var(--on-dark);
+    background-color:var(--ledger-deep);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg stroke='%234dd9d4' stroke-width='1' fill='none' opacity='0.14'%3E%3Cline x1='12' y1='20' x2='58' y2='44'/%3E%3Cline x1='58' y1='44' x2='40' y2='96'/%3E%3Cline x1='58' y1='44' x2='112' y2='30'/%3E%3Cline x1='112' y1='30' x2='128' y2='84'/%3E%3Cline x1='40' y1='96' x2='90' y2='118'/%3E%3C/g%3E%3Cg fill='%234dd9d4' opacity='0.35'%3E%3Ccircle cx='12' cy='20' r='2'/%3E%3Ccircle cx='58' cy='44' r='2.2'/%3E%3Ccircle cx='112' cy='30' r='2'/%3E%3Ccircle cx='40' cy='96' r='2'/%3E%3Ccircle cx='128' cy='84' r='2'/%3E%3Ccircle cx='90' cy='118' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:repeat;
+    color:var(--on-dark);
     padding:56px 0;
   }
   .stat-band .wrap{display:flex;gap:48px;flex-wrap:wrap;}
@@ -148,7 +157,7 @@
     width:48px;height:48px;border-radius:50%;background:rgba(245,242,234,.08);
     display:flex;align-items:center;justify-content:center;flex:none;
   }
-  .stat-band .stat .icon-badge svg{color:#e8a49c;}
+  .stat-band .stat .icon-badge svg{color:var(--glow);}
   .stat-band .num{font-family:var(--mono);font-size:30px;font-weight:700;}
   .stat-band .label{font-size:13px;color:var(--on-dark-soft);}
 
@@ -197,30 +206,30 @@
   /* Process section on photo background */
   .process-photo{
     background-image:
-      linear-gradient(180deg, rgba(10,20,26,.90), rgba(10,20,26,.94)),
+      linear-gradient(180deg, rgba(7,15,23,.90), rgba(7,15,23,.94)),
       url("assets/images/code-screen.jpg");
     background-size:cover;background-position:center;
     color:var(--on-dark);
   }
-  .process-photo .kicker{color:#e8a49c;}
+  .process-photo .kicker{color:var(--glow);}
   .process-photo h2{color:var(--on-dark);}
-  .process-photo .step .n{color:#e8a49c;}
+  .process-photo .step .n{color:var(--glow);}
   .process-photo .step h4{color:var(--on-dark);}
   .process-photo .step p{color:var(--on-dark-soft);}
 
   /* Mid-page colorful CTA band (photo) */
   .cta-photo-band{
     background-image:
-      linear-gradient(115deg, rgba(10,30,54,.88), rgba(10,60,90,.62)),
-      url("assets/images/magnify-audit.jpg");
+      linear-gradient(115deg, rgba(6,16,26,.90), rgba(8,40,52,.68)),
+      url("assets/images/circuit-tech.jpg");
     background-size:cover;background-position:center;
-    color:#f2f8fb;
+    color:#eef8f8;
     padding:64px 0;
   }
   .cta-photo-band .wrap{max-width:640px;}
-  .cta-photo-band .kicker{color:#9fd7ef;}
-  .cta-photo-band h2{color:#f2f8fb;margin-bottom:16px;}
-  .cta-photo-band p{color:#d7e9f2;font-size:16px;margin:0 0 28px;max-width:520px;}
+  .cta-photo-band .kicker{color:var(--glow);}
+  .cta-photo-band h2{color:#eef8f8;margin-bottom:16px;}
+  .cta-photo-band p{color:#bfd8d8;font-size:16px;margin:0 0 28px;max-width:520px;}
   .cta-photo-band .btn-primary{background:var(--stamp);border-color:var(--stamp);}
 
   /* FAQ */
@@ -241,14 +250,19 @@
   .about p{color:var(--ink-soft);max-width:560px;}
 
   /* Contact band */
-  .contact-band{background:var(--ledger-deep);color:var(--on-dark);padding:64px 0 40px;}
-  .contact-band .kicker{color:#e8a49c;}
+  .contact-band{
+    background-color:var(--ledger-deep);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg stroke='%234dd9d4' stroke-width='1' fill='none' opacity='0.1'%3E%3Cline x1='12' y1='20' x2='58' y2='44'/%3E%3Cline x1='58' y1='44' x2='40' y2='96'/%3E%3Cline x1='58' y1='44' x2='112' y2='30'/%3E%3Cline x1='112' y1='30' x2='128' y2='84'/%3E%3Cline x1='40' y1='96' x2='90' y2='118'/%3E%3C/g%3E%3Cg fill='%234dd9d4' opacity='0.25'%3E%3Ccircle cx='12' cy='20' r='2'/%3E%3Ccircle cx='58' cy='44' r='2.2'/%3E%3Ccircle cx='112' cy='30' r='2'/%3E%3Ccircle cx='40' cy='96' r='2'/%3E%3Ccircle cx='128' cy='84' r='2'/%3E%3Ccircle cx='90' cy='118' r='2'/%3E%3C/g%3E%3C/svg%3E");
+    background-repeat:repeat;
+    color:var(--on-dark);padding:64px 0 40px;
+  }
+  .contact-band .kicker{color:var(--glow);}
   .contact-band h2{color:var(--on-dark);}
   .contact-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:32px;}
   @media (max-width:820px){.contact-grid{grid-template-columns:1fr;}}
   .contact-col strong{display:block;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--on-dark-soft);margin-bottom:10px;}
   .contact-col a{display:block;color:var(--on-dark);text-decoration:none;font-size:15px;margin-bottom:6px;}
-  .contact-col a:hover{color:#e8a49c;}
+  .contact-col a:hover{color:var(--glow);}
   .contact-band .disclaimer{
     margin-top:44px;padding-top:24px;border-top:1px solid rgba(245,242,234,.14);
     font-size:12px;color:var(--on-dark-soft);max-width:760px;
