@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Safety Net That Isn't There — Honest Backtest</title>
+<meta name="description" content="Two more bugs from live trading bot audits — where the protection looked real everywhere except in the one place that mattered.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The Safety Net That Isn't There</h1>
+    <p class="dek">Two more bugs from live trading bot audits — where the protection looked real
+    everywhere except in the one place that mattered.</p>
+    <p class="meta">2026-08-14</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>A stop-loss that fires and a stop-loss that logs "fired" are not the same thing. Neither are a
+  circuit breaker that trips and a circuit breaker that mathematically can't move. Both bugs below
+  share a shape I keep running into: the protective mechanism runs, updates its own bookkeeping,
+  tells the operator it did its job — and never actually reaches the part of the system that would
+  have made it real.</p>
+
+  <h2>The pattern</h2>
+  <p>Protective code paths — stop-losses, kill switches, daily loss limits, emergency exits — get
+  exercised far less often than the code that opens positions. An entry function runs on every single
+  trade; a kill switch might fire once in weeks of live running, if ever. That asymmetry means bugs
+  in the protective path survive far longer before anyone notices, because nothing forces them to
+  prove themselves the way constant use forces bugs in the hot path to surface.</p>
+  <p>Two live audits from the last few weeks turned up the same underlying failure, in two different
+  disguises.</p>
+
+  <h2>Case 1: the exit that logs "closed" and stops there</h2>
+  <p>In one bot I reviewed — real capital, real markets — the entry path was solid: build an order,
+  route it through the exchange's real order-submission client, wait for confirmation, record the
+  actual fill. The automatic exit logic (stop-loss, take-profit, and a maximum-holding-time rule)
+  looked, at a glance, like it followed the same pattern. It didn't.</p>
+  <p>When an exit condition triggered, the code wrote a trade record tagged <code>SIMULATED</code>,
+  with a <code>dry_run</code> flag hardcoded <code>True</code> regardless of whether the bot was
+  actually running live — then deleted the position from its own tracking table. Nothing in that
+  path built an order. Nothing called the exchange. The function that actually submits and confirms
+  orders — the same one the entry logic used — was never referenced anywhere in the exit code.</p>
+  <p>The practical effect: the position that was supposed to be closed is still open, on the real
+  exchange, with real exposure — and the bot no longer knows it exists, because it just deleted its
+  own only record of it. Logs, dashboard, and any alerting all say "closed." The one system that
+  would show otherwise — the exchange itself — was never asked.</p>
+  <p>Worth noting: this bot's documentation advertised a fully-built exit system with six named
+  strategies, including an explicit kill-switch meant to "force exit all positions." That code
+  existed, tested, in the repository — just never imported anywhere outside its own test file. A
+  correct, well-tested kill switch that nothing in the live code path ever calls provides exactly as
+  much protection as no kill switch at all.</p>
+
+  <h2>Case 2: the risk limit that's mathematically incapable of triggering</h2>
+  <p>A different bot, a different failure mode, same root shape. This one ran a cross-exchange hedge
+  strategy — open a position on one exchange, immediately hedge it on another — with a daily loss
+  limit meant to halt trading if losses crossed a threshold.</p>
+  <p>The loss-limit check itself was fine: it compared an accumulated running total against a
+  configured maximum and blocked new trades if breached. The problem was one level up. The only place
+  in the entire codebase that updated that running total was a single function call after every
+  successful fill — and that call never passed a PnL argument. The function's own signature gave it
+  a default value of zero. Every single trade, win or loss, added exactly <code>0</code> to the
+  total.</p>
+  <p>The running total was therefore mathematically incapable of ever becoming negative enough to
+  trip the limit — not "unlikely to," but structurally unable to, by construction. The same
+  permanently-zero number also fed the bot's own status display, so the operator-facing dashboard
+  read "today's P&amp;L: 0.00" continuously, whether the bot was flat or bleeding — indistinguishable
+  from the outside. This particular strategy carries a specific extra risk: if one leg of the hedge
+  fails to fill while the other goes through, the position is briefly — or not so briefly —
+  directional and unhedged. That's exactly the scenario the loss limit exists to catch, and exactly
+  the scenario it was structurally blind to.</p>
+
+  <h2>Why this survives so long</h2>
+  <p>Neither of these bugs is subtle once you're looking at the right ten lines. Both survived
+  because nobody was forced to look at those ten lines under real conditions. A stale-price bug fires
+  on every trade — it's loud, eventually, just by volume. A dead kill-switch or a zeroed-out loss
+  counter is quiet by nature: it only needed to work once, in the one moment things went wrong, and
+  by then it's too late to notice the check that should have stopped it never could have.</p>
+  <p>Standard unit tests don't reliably catch this either. A unit test that calls the risk function
+  directly with a real loss value would pass fine — the bug isn't in what the function does with a
+  real argument, it's that the one real call site in production never supplies one. That's a wiring
+  problem, not a logic problem, and wiring problems only show up when you trace a value from where it
+  originates to where it's actually used, not when you test each function in isolation.</p>
+
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>For every stop-loss, kill-switch, or emergency-exit path, trace it to an actual
+    order-submission call — the same one your entry logic uses. If the exit path reaches a different,
+    thinner function (or none), that's worth a hard look.</li>
+    <li>For every risk counter that's supposed to accumulate over time (daily P&amp;L, loss streak,
+    drawdown), find every call site that updates it and confirm each one actually passes a real,
+    non-default value — not just that the accumulator logic itself is correct in isolation.</li>
+    <li>Don't trust "well-tested" as a proxy for "connected." A correctly implemented safety class
+    that's never imported into the live path is just documentation.</li>
+    <li>If you can, deliberately trigger your emergency path once in a controlled setting and confirm
+    — from the exchange's own records, not your bot's logs — that an order actually happened. Your
+    bot's own logs aren't an independent witness; if the bug is that they lie, they'll lie
+    convincingly.</li>
+  </ul>
+
+  <hr>
+  <p>Both of these were live when I found them, not abandoned side projects or paper-trading demos.
+  That's usually the case: the protective code doesn't get skipped, it gets written, tested in
+  isolation, wired in mostly right, and then quietly fails to do the one thing it exists for. I wrote
+  about a related pattern —
+  <a href="stale-price-bug.html">stale prices undermining stop-losses</a> — in an earlier post; this
+  is the same lesson from a different angle. What a bot logs about its own safety and what its safety
+  actually does are two separate claims, and only one of them is checkable from the outside.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+</body>
+</html>

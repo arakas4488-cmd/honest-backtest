@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stale Price Bug: Why Your Stop-Loss Might Not Protect You — Honest Backtest</title>
+<meta name="description" content="A pattern found across three independent trading bots — including one I run myself: stop-loss/take-profit computed from a price that's stale by the time the position opens.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>Stale Price Bug: Why Your Stop-Loss Might Not Protect You</h1>
+    <p class="dek">A pattern found across three independent trading bots — including one I run myself.</p>
+    <p class="meta">2026-08-13</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>A stop-loss at -7.5% sounds like a hard guarantee. It isn't, unless the price it's measured
+  <em>from</em> is the price your order actually executed at — not the price the bot glanced at a
+  few seconds, or a few minutes, earlier.</p>
+
+  <p>This gap — between the price a bot <em>decides</em> on and the price it actually <em>gets</em> —
+  is one of the most common bugs I run into auditing live trading systems. It's not exotic. It
+  doesn't look like a bug when you read the code casually. It only shows up when you trace one
+  specific value across the full path from signal to fill.</p>
+
+  <h2>The pattern</h2>
+  <p>Almost every bot has a moment where it reads a price, makes a decision, and then <em>waits</em>
+  — for an order to route, a swap to confirm on-chain, a limit order to fill. The wait can be 200ms
+  or it can be five minutes. Whatever price the bot used to set its protective stop-loss/take-profit
+  was captured <em>before</em> that wait, not after.</p>
+  <p>If nothing re-reads the price once the position is actually open, the "protection" is anchored
+  to a number that may no longer describe reality.</p>
+
+  <h2>Case 1: the swap that outran its own stop-loss</h2>
+  <p>In a Solana DEX trading bot I reviewed, the stop-loss/take-profit levels were computed from a
+  candle price captured right before a swap was submitted. The swap itself wasn't instant — it
+  polled for on-chain confirmation inside a nested retry loop, worst case around five minutes
+  between "price read" and "swap actually landed."</p>
+  <p>The bot's own swap function <em>knew</em> the real fill price — it computed and logged it — but
+  only logged it. The function returned a plain <code>True</code>/<code>False</code>, so the caller
+  never saw the number and fell back to the stale pre-swap price for the stop-loss reference.</p>
+  <p>Concretely: signal at $100 → intended stop at $92.50. While the swap sits in flight, the market
+  drops to $90 and the swap fills there. The bot believes it entered at $100 with $7.50 of room. It
+  actually entered at $90, already most of the way to a stop that was never recalculated from the
+  real entry.</p>
+
+  <h2>Case 2: an argument shift that silently swapped market-close for a slow limit order</h2>
+  <p>A different bug, same root cause — the exit path wasn't tested end-to-end. In a futures bot,
+  the function that closes a position on stop-loss/take-profit had grown new leading parameters over
+  time. The call sites that trigger exits still passed the old, shorter argument list — every
+  argument landed one slot to the right of where it was supposed to.</p>
+  <p>The practical effect: a parameter that defaults to <code>100</code> (truthy) ended up bound to
+  the internal flag that decides whether to close the position immediately at market, or place a
+  passive limit order and slowly chase the price instead. Every stop-loss and take-profit exit fired
+  the slow path — with no configuration change needed to trigger it — exactly in the scenario (a
+  fast move) where an immediate close was the entire point of having a stop-loss.</p>
+  <p>Nothing crashed. Nothing logged an error. The log line even printed "stop-loss triggered." The
+  order just didn't behave the way the code around it assumed.</p>
+
+  <h2>Case 3: it happened in my own bot too</h2>
+  <p>I hold my own systems to the same standard I audit others against, so here's an honest one: in
+  an equity swing-trading bot I run on Interactive Brokers, I found the identical bug class in a live
+  trade. Stop-loss and take-profit were computed from the <em>signal</em> price, then sent as an
+  atomic bracket order — but the entry used a limit order that could sit unfilled for up to the order
+  timeout window while price kept moving.</p>
+  <p>One real trade: signal at $16.87 → SL at $16.77 (10¢ risk), TP at $17.06 (19¢ target). The limit
+  order actually filled at $17.03. Measured from the real entry, risk was 26¢ and the target was 3¢
+  away — the risk/reward ratio was almost inverted, and the take-profit was nearly already hit at the
+  moment the position opened.</p>
+  <p>I didn't catch this by reading the code and spotting it abstractly. I caught it by pulling one
+  specific live trade from the audit log and checking the signal price against the actual fill.
+  That's the only way this class of bug reliably surfaces — code review alone gets you 80% of the
+  way; tracing a real execution gets you the rest.</p>
+
+  <h2>Why this keeps happening</h2>
+  <p>None of these are careless bugs. Every one sits in code that's otherwise well-structured, with
+  retry logic, error handling, logging. The gap survives because most testing — and most code review
+  — focuses on the entry/signal logic, where the interesting strategy decisions live. The exit path,
+  where money actually gets protected, gets audited far less rigorously, even though it's the part
+  doing the actual risk management.</p>
+
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>Trace the exact variable your stop-loss/take-profit is computed from, from the moment it's
+    read to the moment the protective order is placed. Is anything re-read after a fill, or is it the
+    same value the whole way through?</li>
+    <li>If an order function computes a real execution price internally, confirm that price actually
+    gets returned to the caller — not just logged.</li>
+    <li>Check every call site of your position-close function for argument order, especially after
+    any signature change. A shifted keyword argument won't raise an exception; it'll just quietly
+    change behavior.</li>
+    <li>Pull one real trade from your logs and manually verify signal price → decision → fill price →
+    protective order levels, end to end. Reading the code is not the same as checking what actually
+    happened.</li>
+  </ul>
+
+  <hr>
+  <p>One of the bugs above — reported through the same review process, in a public repository — was
+  confirmed and merged as a fix within 24 hours:
+  <a href="https://github.com/0xfnzero/sol-trade-sdk/pull/112" target="_blank" rel="noopener">github.com/0xfnzero/sol-trade-sdk/pull/112</a>.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+</body>
+</html>
