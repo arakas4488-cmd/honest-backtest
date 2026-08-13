@@ -170,7 +170,7 @@
     display:flex;align-items:center;justify-content:center;flex:none;
   }
   .stat-band .stat .icon-badge svg{color:var(--glow);}
-  .stat-band .num{font-family:var(--mono);font-size:30px;font-weight:700;}
+  .stat-band .stat strong{display:block;font-size:15px;font-weight:700;color:var(--on-dark);margin-bottom:4px;}
   .stat-band .label{font-size:13px;color:var(--on-dark-soft);}
 
   .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
@@ -304,9 +304,11 @@
   <div class="wrap">
     <p class="kicker">Independent code audits · algorithmic trading bots</p>
     <h1>Your backtest is lying to you. I find out how.</h1>
-    <p class="lede">I review the actual code — entry/exit logic, order management, risk handling —
-    and re-run your backtest with realistic commissions and execution assumptions. Not a
-    recalculated Sharpe ratio. Not marketing copy.</p>
+    <p class="lede">A trading bot is a complex machine — it needs periodic diagnostics before you
+    trust it with real money, and sometimes emergency help when something's already gone
+    wrong live. That's what I check: the actual code — entry/exit logic, order management, risk
+    handling — and I re-run your backtest with realistic commissions and execution assumptions.
+    Not a recalculated Sharpe ratio. Not marketing copy.</p>
     <div class="cta-row">
       <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">See audit packages</a>
       <a class="btn btn-ghost" href="#cases">Read the case studies</a>
@@ -340,15 +342,15 @@
   <div class="wrap">
     <div class="stat">
       <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20V10M12 20V4M20 20v-7"/></svg></div>
-      <div><div class="num">40+</div><div class="label">responsible-disclosure issues<br>filed on live trading bots</div></div>
+      <div><strong>Responsible-disclosure issues filed</strong><div class="label">on live trading bots, public and reviewable</div></div>
     </div>
     <div class="stat">
       <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg></div>
-      <div><div class="num">2</div><div class="label">public, numbers-shown<br>case studies</div></div>
+      <div><strong>Public case studies</strong><div class="label">real numbers shown, not summarized</div></div>
     </div>
     <div class="stat">
       <div class="icon-badge"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 2v4M12 18v4M4.9 4.9l2.8 2.8M16.3 16.3l2.8 2.8M2 12h4M18 12h4M4.9 19.1l2.8-2.8M16.3 7.7l2.8-2.8"/><circle cx="12" cy="12" r="3"/></svg></div>
-      <div><div class="num">1</div><div class="label">bot I ran with my own<br>capital before auditing yours</div></div>
+      <div><strong>Audited my own bot first</strong><div class="label">ran it with my own capital before auditing yours</div></div>
     </div>
   </div>
 </div>
@@ -494,6 +496,17 @@
         <summary>How long does it take?</summary>
         <p>Written report within a week of receiving your code and data, with one round of
         follow-up questions included at no extra charge.</p>
+      </details>
+      <details>
+        <summary>Do you also fix the bugs you find?</summary>
+        <p>Think of it like a car: a trading bot is a complex machine — it needs periodic
+        diagnostics before you trust it with real money, and sometimes emergency help when
+        something's already gone wrong live. I run that diagnostic honestly whether it takes five
+        minutes or five hours, whether I find one issue or ten — <strong>the audit fee never
+        changes based on what I find.</strong> If something is actually wrong, fixing it is a
+        separate job, quoted only after you've seen the findings — entirely your call whether to
+        book it here or take the report elsewhere. Something wrong right now? Contact me:
+        <a href="mailto:honest.audit48@gmail.com" style="color:var(--ledger);font-weight:600;">honest.audit48@gmail.com</a>.</p>
       </details>
     </div>
   </div>
