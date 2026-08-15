@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Safety-Net Checklist — Honest Backtest</title>
+<meta name="description" content="The 8 checks I run against every trading bot I audit, covering both the entry-price path and the exit/risk-limit path. Free, consolidated from two live bug-pattern writeups.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="index.html#services">Services</a>
+      <a href="index.html#cases">Case Studies</a>
+      <a href="blog/">Blog</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="index.html#about">About</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="blog/">← Back to blog</a>
+    <p class="kicker">Free Checklist</p>
+    <h1>The Safety-Net Checklist</h1>
+    <p class="dek">The 8 checks I actually run against a trading bot's entry-price and exit/risk-limit
+    paths, consolidated from two live bug-pattern writeups.</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>These are the same items from
+  <a href="blog/stale-price-bug.html">Stale Price Bug</a> and
+  <a href="blog/safety-net-that-isnt-there.html">The Safety Net That Isn't There</a>, put in one
+  place. Nothing here is gated — read it, use it, done. If you'd rather I ran through these
+  against your actual code instead of doing it yourself, there's a form at the bottom.</p>
+
+  <h2>Entry-price path</h2>
+  <ul>
+    <li>Trace the exact variable your stop-loss/take-profit is computed from, from the moment
+    it's read to the moment the protective order is placed. Is anything re-read after a fill, or
+    is it the same value the whole way through?</li>
+    <li>If an order function computes a real execution price internally, confirm that price
+    actually gets returned to the caller — not just logged.</li>
+    <li>Check every call site of your position-close function for argument order, especially
+    after any signature change. A shifted keyword argument won't raise an exception; it'll just
+    quietly change behavior.</li>
+    <li>Pull one real trade from your logs and manually verify signal price → decision → fill
+    price → protective order levels, end to end. Reading the code is not the same as checking
+    what actually happened.</li>
+  </ul>
+
+  <h2>Exit / risk-limit path</h2>
+  <ul>
+    <li>For every stop-loss, kill-switch, or emergency-exit path, trace it to an actual
+    order-submission call — the same one your entry logic uses. If the exit path reaches a
+    different, thinner function (or none), that's worth a hard look.</li>
+    <li>For every risk counter that's supposed to accumulate over time (daily P&amp;L, loss
+    streak, drawdown), find every call site that updates it and confirm each one actually passes
+    a real, non-default value — not just that the accumulator logic itself is correct in
+    isolation.</li>
+    <li>Don't trust "well-tested" as a proxy for "connected." A correctly implemented safety
+    class that's never imported into the live path is just documentation.</li>
+    <li>If you can, deliberately trigger your emergency path once in a controlled setting and
+    confirm — from the exchange's own records, not your bot's logs — that an order actually
+    happened. Your bot's own logs aren't an independent witness; if the bug is that they lie,
+    they'll lie convincingly.</li>
+  </ul>
+
+  <hr>
+
+  <div class="lead-box" id="get-checklist">
+    <p class="kicker">Want a second pair of eyes</p>
+    <h2>I'll personally check these against your bot</h2>
+    <p>Drop your email and I'll reach out — one message from me, not a drip campaign. Free, no
+    commitment, and if I don't see anything obviously wrong I'll tell you that too.</p>
+    <form id="checklist-form" action="https://formspree.io/f/xzepaeve" method="POST">
+      <div class="lead-form-row">
+        <label for="lead-email" class="sr-only">Email</label>
+        <input id="lead-email" type="email" name="email" placeholder="you@company.com" required>
+        <button type="submit" class="btn btn-primary">Send</button>
+      </div>
+      <input type="hidden" name="_subject" value="Checklist walkthrough request — Honest Backtest">
+    </form>
+    <p id="lead-form-status" class="lead-form-status" role="status"></p>
+  </div>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="assets/analytics-events.js"></script>
+<script>
+  (function () {
+    var form = document.getElementById('checklist-form');
+    var status = document.getElementById('lead-form-status');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var data = new FormData(form);
+      status.textContent = 'Sending…';
+      fetch(form.action, {
+        method: 'POST',
+        body: data,
+        headers: { 'Accept': 'application/json' }
+      }).then(function (res) {
+        if (res.ok) {
+          status.textContent = "Got it — I'll reach out personally soon.";
+          form.reset();
+          if (typeof gtag === 'function') gtag('event', 'generate_lead', { form: 'checklist' });
+        } else {
+          status.textContent = "Something went wrong — email me directly instead: honest.audit48@gmail.com";
+        }
+      }).catch(function () {
+        status.textContent = "Something went wrong — email me directly instead: honest.audit48@gmail.com";
+      });
+    });
+  })();
+</script>
+
+</body>
+</html>
