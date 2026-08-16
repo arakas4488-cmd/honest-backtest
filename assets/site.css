@@ -119,6 +119,16 @@ h2{font-family:var(--serif);font-size:30px;margin:0 0 28px;}
     background-repeat:no-repeat, repeat, no-repeat;
   }
 }
+.hero .hero-grid{display:flex;gap:40px;align-items:flex-end;max-width:1140px;}
+.hero-main{flex:0 0 auto;max-width:620px;}
+.hero-offer{flex:1 1 260px;max-width:320px;background:rgba(8,20,31,.55);border:1px solid rgba(245,242,234,.25);border-radius:8px;padding:20px 22px;margin-bottom:4px;}
+.hero-offer p{margin:0;font-size:14px;line-height:1.5;color:var(--on-dark-soft);}
+.hero-offer a{color:var(--glow);font-weight:600;text-decoration:none;}
+.hero-offer a:hover{text-decoration:underline;}
+@media (max-width:820px){
+    .hero .hero-grid{flex-direction:column;align-items:flex-start;}
+    .hero-offer{max-width:100%;margin-top:20px;}
+}
 .scroll-cue{
   display:flex;justify-content:center;padding:28px 0 20px;opacity:.55;
 }
