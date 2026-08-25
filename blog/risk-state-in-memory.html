@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Risk State That Only Exists in RAM — Honest Backtest</title>
+<meta name="description" content="Two more bugs from live trading bot audits — where the number the bot tracks internally quietly stops matching what's actually protecting you on the exchange.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The Risk State That Only Exists in RAM</h1>
+    <p class="dek">Two more bugs from live trading bot audits — where the number the bot tracks
+    internally quietly stops matching what's actually protecting you on the exchange.</p>
+    <p class="meta">2026-08-25</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>A bot's internal variable and the real state of the world are two different things, connected
+  only by whatever code keeps them in sync. Most of the time nobody notices the gap, because most of
+  the time nothing forces the two to diverge. The two bugs below both come from the same root cause:
+  a number that lives only in a running process's memory, with nothing writing it anywhere durable
+  and nothing pushing it back out to the exchange once it changes.</p>
+
+  <h2>Case 1: the daily loss limit a routine restart wipes out</h2>
+  <p>A live bot I reviewed — real orders hitting a real exchange, not a backtest — ran under a process
+  supervisor configured to restart it automatically on failure, with an explicit crash-loop guard in
+  the unit file. That's a reasonable, even mature, piece of operational hygiene: unattended bots
+  should recover from crashes rather than sit dead until someone notices.</p>
+  <p>The daily loss limit told a different story. The running total that a loss-limit check compared
+  against its threshold was set once, in the initialization code, and never persisted anywhere —
+  no database row, no file, nothing that survives the process exiting. A separate function existed
+  to recompute the day's real losses from exchange history on a fresh start, correctly handling the
+  exchange's own midnight rollover. It was never called. Every restart — crash, deploy, or the
+  supervisor's own routine recovery — silently reset the day's tracked losses to zero, regardless of
+  how close to the limit the bot actually was five seconds before the restart.</p>
+  <p>The bot's own logs never show this as a bug, because from the process's point of view nothing
+  went wrong: it started up clean, initialized its state per its own code, and carried on. The gap
+  only exists between what the exchange's account history says happened that day and what the bot
+  currently believes — and nothing in the bot ever compares the two.</p>
+
+  <h2>Case 2: the stop-loss that only moves in a Python variable</h2>
+  <p>A different bot, trading options on one exchange, ran a trailing stop meant to lock in profit
+  as a position moved favorably. The logic that decided when and how far to trail the stop was
+  correct — it recalculated a new stop level on every price update and stored it on the in-memory
+  trade object.</p>
+  <p>What it never did was tell the exchange. The execution module that this bot used to open and
+  close positions had no order-amend or order-edit call anywhere in it — only submit-new and
+  cancel. The trailing logic updated <code>trade.stop_loss</code>, which fed the bot's own dashboard
+  and logs, and stopped there. The actual protective order resting on the exchange's books stayed at
+  the price it was first submitted at, for the lifetime of the position. A trader watching the
+  dashboard would see the stop "trailing up" in real time while the order that would actually close
+  the position on adverse movement never moved at all.</p>
+
+  <div class="article-cta">
+    <p>This is one failure shape out of several I check for. The full checklist — entry-price path
+    and exit/risk-limit path together — is on one page, or I can walk through it against your bot
+    directly.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+
+  <h2>Why "it worked in testing" doesn't catch this</h2>
+  <p>Both bugs pass a normal test suite without any trouble, because a unit test constructs its own
+  world and never restarts the process or checks the exchange's own order book — it just calls the
+  function and inspects the in-memory result, which is exactly where each of these bugs' state lives.
+  The daily-loss-limit function computes the right answer given a correct running total; it's simply
+  never fed one after the first restart. The trailing-stop function computes the right new stop
+  price; it just never reaches an API call that would move the real order. Neither bug is a logic
+  error inside the function you'd naturally go read — it's a missing wire between a correct
+  calculation and the one place that calculation needed to land.</p>
+
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>For any risk counter that's supposed to persist across a day (daily P&amp;L, loss streak,
+    drawdown) — kill the process and restart it mid-session. If the counter comes back at zero, or
+    the recovery function that should rebuild it from exchange history is defined but unused, you've
+    found this bug.</li>
+    <li>For any stop-loss or take-profit that's meant to trail or adjust, confirm the update path
+    ends in an actual order-amend/cancel-and-replace call to the exchange — not just an assignment to
+    an in-memory field that happens to also drive your dashboard.</li>
+    <li>Treat "my process supervisor auto-restarts on crash" as a reason to specifically re-check
+    every piece of state that's supposed to survive a restart, not just a reliability win. The two
+    goals pull in opposite directions unless someone deliberately reconciled them.</li>
+    <li>When in doubt, trust the exchange's own account/order history over your bot's internal
+    variables — the bugs above are exactly the case where the two quietly stop agreeing and nothing
+    in the bot itself would ever tell you.</li>
+  </ul>
+
+  <hr>
+  <p>Both bots were live, with real capital, when I found these. Neither is exotic — a process
+  supervisor and a trailing stop are both perfectly ordinary things to build. The failure isn't in
+  wanting either feature; it's in the seam between two pieces of code that each work correctly on
+  their own but were never actually connected. I've written about a related shape before —
+  <a href="safety-net-that-isnt-there.html">a stop-loss that logs "closed" without telling the
+  exchange</a> — this is the same lesson again: what a bot's internal state says and what's actually
+  true in the market are two separate claims, and only one of them is checkable from the outside.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
