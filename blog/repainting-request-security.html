@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The request.security() Value That Isn't There Yet — Honest Backtest</title>
+<meta name="description" content="Why a Pine Script strategy can look profitable in the Strategy Tester and lose money live: the request.security() value your backtest used didn't exist yet at the moment a live bot would have acted on it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Platform Mechanics · Backtest vs Live</p>
+    <h1>The request.security() Value That Isn't There Yet</h1>
+    <p class="dek">"Profitable in the Strategy Tester, losing money live" usually gets blamed on
+    slippage. One specific, mechanically checkable cause is worth ruling out first — and it's
+    documented behavior, not a rare edge case.</p>
+    <p class="meta">2026-08-29</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>This one isn't from a client audit — it's a platform mechanic every Pine Script strategy that
+  pulls in a higher timeframe should be checked against, because it's easy to introduce by accident
+  and TradingView's own documentation explicitly warns about it. If your backtest and your live or
+  paper results have quietly stopped agreeing and you've already ruled out fees and slippage, this
+  is the next thing to check.</p>
+
+  <h2>What request.security() actually does</h2>
+  <p><code>request.security()</code> pulls a value computed on a different timeframe (or symbol)
+  into your script's current context — the standard way to check, say, the 1-hour trend from a
+  15-minute chart. It takes a <code>lookahead</code> parameter that controls how it fills in values
+  on historical bars. As of the current Pine Script version, its documented default is
+  <code>barmerge.lookahead_off</code> — meaning out of the box, it does not leak information from
+  the future into the past.</p>
+  <p>The bug shows up when someone explicitly sets <code>lookahead=barmerge.lookahead_on</code>.
+  People usually do this on purpose, not by accident — it removes what looks like an annoying
+  one-bar lag on the higher-timeframe value, and plenty of forum answers recommend it for exactly
+  that reason. TradingView's own docs carry a direct warning about this setting:</p>
+  <pre><code>"When using barmerge.lookahead_on without an offset, ensure that it does not
+compromise the integrity of the script's logic by leaking future data into
+historical chart bars."</code></pre>
+
+  <h2>The naive pattern</h2>
+  <pre><code>//@version=6
+strategy("HTF trend filter")
+htfClose = request.security(syminfo.tickerid, "60", close,
+     lookahead=barmerge.lookahead_on)
+
+if close > htfClose
+    strategy.entry("Long", strategy.long)</code></pre>
+  <p>On historical bars, this compares the current price against the <em>closed</em> 1-hour value —
+  including, for intraday bars still inside that hour, a close that in a live sense hasn't happened
+  yet. The backtest engine has the full historical record, so it fills in that value without
+  complaint. Every entry signal in the Strategy Tester is quietly using information that wasn't
+  actually available at the moment a live bot would have had to act on it.</p>
+
+  <div class="article-cta">
+    <p>This is one failure shape out of several I check for when a bot's live results stop matching
+    its backtest. The full checklist — entry-price path and exit/risk-limit path together — is on
+    one page, or I can walk through it against your script directly.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+
+  <h2>Why it doesn't show up while you're watching it live</h2>
+  <p>This is the part that makes the bug hard to catch by eyeballing the chart. TradingView's docs
+  describe exactly this: on the currently-forming realtime bar, a lookahead series and a
+  no-lookahead series plot the <em>same</em> value — there's no future data to leak yet, because the
+  bar hasn't closed. The divergence only appears retroactively, once that realtime bar becomes
+  historical and gets recalculated with the full record available. The docs call this
+  <strong>repainting</strong>: the value you watched happen live and the value the same bar shows
+  after a reload are two different numbers, and only the second one is what your backtest actually
+  ran on.</p>
+  <p>So a live paper-trading session can look like it's confirming the strategy works — the signals
+  you watch fire in real time match what the backtest predicted — right up until you reload the
+  chart and the historical bars quietly repaint into a different story.</p>
+
+  <h2>A second, easy-to-miss variant</h2>
+  <p>The same function has a related but separate gotcha when the requested timeframe is at or below
+  your chart's own resolution — for example, requesting 1-minute data on a 1-minute chart, or any
+  case where the "higher" timeframe you're pulling isn't actually higher. TradingView's docs are
+  specific about what you get back in that case:</p>
+  <pre><code>"When calling this function to access a lower timeframe, it will evaluate
+the expression from the LTF context. However, it returns the results from
+only a single intrabar (LTF bar) on each chart bar."</code></pre>
+  <p>Which intrabar you get depends on the same <code>lookahead</code> setting — the first intrabar
+  of the period with <code>lookahead_on</code>, the last with <code>lookahead_off</code>. It's a
+  different mechanism from the repainting issue above, but the practical effect is the same shape of
+  problem: the value your logic reacts to in a backtest isn't necessarily the value a live bot would
+  have seen at that moment, and the mismatch is invisible unless you go looking for it.</p>
+
+  <h2>What to check in your own script</h2>
+  <ul>
+    <li>Grep every <code>request.security()</code> call in your script for the
+    <code>lookahead</code> argument. If it's not set, you're on the safe default. If it's set to
+    <code>barmerge.lookahead_on</code>, that call needs a second look.</li>
+    <li>For any call using <code>lookahead_on</code>, check whether the requested series has an
+    explicit historical offset (a trailing <code>[1]</code>) applied. Without one, you're very
+    likely leaking data into your backtest that a live bot would not have had.</li>
+    <li>If you're requesting a timeframe at or below your chart's own resolution, confirm which
+    intrabar you're actually getting back and whether that's the one your logic assumes.</li>
+    <li>Reload the script after watching a live/realtime session and compare: did any of the values
+    on the most recently closed bars change from what you watched happen? That's the direct,
+    observable symptom of repainting.</li>
+  </ul>
+
+  <hr>
+  <p>None of this requires an exotic setup — a higher-timeframe trend filter is one of the most
+  common things people add to a strategy, and <code>lookahead_on</code> is a documented, legitimate
+  parameter with real uses. The failure isn't in wanting the feature; it's that the difference
+  between "correct on historical bars" and "correct at the moment a live bot has to decide" is easy
+  to miss unless you know specifically where to look. It's the same underlying lesson as the audit
+  bugs I've written about before: what a bot's numbers show and what was actually knowable at the
+  time are two separate claims, and a backtest alone won't tell you which one you're looking at.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
