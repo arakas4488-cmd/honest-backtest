@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The 2:1 Setup That Paid Out at 0.75:1 — Honest Backtest</title>
+<meta name="description" content="A stop-loss and take-profit built for a clean 2:1 reward:risk ratio traded live at roughly 0.75:1. The cause wasn't the exit logic — it was commission, and it was hiding in plain sight in the R-multiple math.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The 2:1 Setup That Paid Out at 0.75:1</h1>
+    <p class="dek">The stop-loss and take-profit were sized for a clean 2:1 reward:risk ratio, and the
+    price-based math behind them was correct. Live, the realized ratio came out closer to 0.75:1.
+    The instinct is to blame the exits. The actual cause was arithmetic, not timing.</p>
+    <p class="meta">2026-08-30</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>This is one from a bot I run myself, not a client audit — but the same shape shows up often
+  enough in code I review that it's worth writing up on its own. "Backtest looked fine, live looks
+  worse" usually gets diagnosed as slippage or a broken exit. This one wasn't either. The stop-loss
+  and take-profit fired exactly where they were supposed to. The problem was one line above that:
+  what "reward" and "risk" actually meant once real costs were counted.</p>
+
+  <h2>What the setup was supposed to be</h2>
+  <p>The stop-loss was ATR-based — sized to the instrument's recent volatility, not a fixed dollar
+  amount. The take-profit was set to roughly double that distance, a standard 2:1 target. Checking
+  the actual price levels on every trade in the sample against entry, stop, and target confirmed the
+  designed reward:risk ratio really was there in price terms: <strong>≈1.94:1</strong>, almost
+  exactly as intended. Nothing wrong with the setup on paper.</p>
+
+  <h2>What the fills actually showed</h2>
+  <p>Pulling realized PnL from the broker's own commission reports — not derived, not estimated,
+  read directly off the fills — and comparing it to that same price-based risk and reward told a
+  different story. Average realized win: <strong>$1.57</strong>, slightly <em>above</em> the average
+  designed reward of $1.41 — so the win side wasn't the issue, if anything it was doing a little
+  better than planned. The losing side was where the gap showed up: average realized loss exceeded
+  the pure price-based stop-loss risk by <strong>$1.37</strong> on average (median $1.60), on every
+  losing trade in the sample. That's not a rounding error — it's a consistent, one-directional tax
+  on every loser and none of the winners.</p>
+
+  <div class="article-cta">
+    <p>Checking your own fills against your designed levels — instead of trusting the backtest's
+    price-only math — is exactly the kind of recalculation a commission-aware audit does before
+    trusting a number.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+
+  <h2>Where the missing dollars went</h2>
+  <p>Round-trip commission on this setup ran <strong>$0.92–$1.78</strong> per trade — and that range
+  fully accounts for the gap on its own, no other explanation needed. The mechanism is arithmetic,
+  not behavioral: commission is close to a fixed dollar amount per round trip, regardless of how far
+  price moves. An ATR-based stop keeps the loss side <em>narrow</em> in dollar terms by design — that's
+  the point of volatility-based sizing. A take-profit twice that distance is correspondingly
+  <em>wide</em>. The same roughly-fixed commission is a large fraction of a narrow loss and a small
+  fraction of a wide win. It barely touches the winners and eats disproportionately into every
+  loser — quietly dragging the realized ratio down from a designed ~2:1 toward under 1:1, with zero
+  bugs in the stop or target logic.</p>
+
+  <h2>Why the fix isn't the exit logic</h2>
+  <p>The natural first move is to tighten the exits — add a trailing stop, take partial profit
+  earlier, tune the take-profit distance. None of that addresses the actual cause, because the exit
+  levels were never the problem. The three levers that actually move this number:</p>
+  <ul>
+    <li><strong>Widen the stop.</strong> A wider ATR-based stop makes fewer trades "commission-marginal"
+    — the same fixed cost becomes a smaller fraction of a bigger price-based risk.</li>
+    <li><strong>Size up per trade.</strong> The same commission spread over a larger dollar risk has
+    less relative drag — this only works if your risk-per-trade rules have room for it.</li>
+    <li><strong>Price it in up front.</strong> Subtract expected round-trip commission from your
+    minimum edge threshold before a signal is approved, instead of finding out about it in the PnL
+    after the fact.</li>
+  </ul>
+
+  <h2>How to check this in your own numbers</h2>
+  <ul>
+    <li>Pull PnL from actual fills or commission reports — not the backtest's internal accounting —
+    and compare it trade-by-trade to the price-based risk and reward implied by your stop and
+    target. Don't assume they match.</li>
+    <li>Compute your round-trip commission in dollars for your typical size, and compare it to your
+    typical stop-loss distance in dollars. If commission is a double-digit percentage of that
+    distance, your realized reward:risk will measurably underperform your designed reward:risk —
+    every time, not occasionally.</li>
+    <li>Check whether most backtest engines even model your real commission schedule by default.
+    Plenty default to zero or a flat generic value that has nothing to do with your actual broker's
+    tier — which means the price-based ratio your backtest reports can be correct and still not be
+    the ratio you'll realize.</li>
+  </ul>
+
+  <hr>
+  <p>Nothing about this required a bug. The stop fired where it should have, the target fired where
+  it should have, and the price-based math behind both was right. The gap was entirely in what
+  "reward" and "risk" meant once a mostly-fixed dollar cost got applied to a narrow side and a wide
+  side unevenly. A backtest that only checks prices — not fills, not commission — can be completely
+  honest about the setup and still hand you a ratio you will not actually get.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
