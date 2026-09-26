@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Guard That Counts the Wrong Thing — Honest Backtest</title>
+<meta name="description" content="Two bugs from an open-source trading bot audit: a duplicate-trade guard that checks open positions but not resting orders, and a "daily" loss limit that is really since-launch. Plus what happened when the maintainer replied.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The Guard That Counts the Wrong Thing</h1>
+    <p class="dek">A risk guard can be perfectly written and still protect against the wrong thing — because it checks one place where exposure lives, while the bot creates it in another. Two cases from an open-source EA, and what the maintainer did about them.</p>
+    <p class="meta">2026-09-26</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>Most risk guards are one line long. "Don't open a trade if one is already open." "Stop trading
+  if today's loss passes the limit." The line is usually correct. The bug is in what it looks at:
+  a guard is only as good as the list of places it checks, and a bot can create exposure in more
+  places than the guard knows about. The two cases below come from one open-source MetaTrader
+  expert advisor I reviewed by reading its public source. Both are the same shape — a guard that
+  is right about the thing it counts and blind to the thing it doesn't.</p>
+
+  <p><em>Disclosure: I found these by static code review, not by running the bot. I filed them
+  as an ordinary public issue on the repository, and I'm leaving the project unnamed here on
+  purpose.</em></p>
+
+  <h2>Case 1: the "one trade at a time" guard that can't see resting orders</h2>
+  <p>The bot's entry logic opened with a check: if there is an open position, return. That's the
+  entire duplicate-trade guard, and for market orders it works. But this bot didn't enter with
+  market orders — it placed pending sell-limit orders at levels it expected price to reach. A
+  pending order isn't a position. It sits in a different list until it fills, and the guard never
+  looked at that list; a search of the whole source found no call that counts resting orders at all.</p>
+  <p>The only throttle was a cooldown of about a minute between placements. On a one-minute chart,
+  that means a fresh sell-limit could be stacked roughly every candle for as long as the entry
+  conditions kept re-triggering and nothing had filled yet. Each stacked order was sized
+  correctly against the README's "maximum risk per trade" — but they were sized independently.
+  If price then spiked through several of those levels at once, the realized simultaneous risk was
+  a multiple of the single-trade cap the documentation promised.</p>
+
+  <h2>Case 2: the "daily" loss limit that isn't daily</h2>
+  <p>The second guard compared a starting balance against the current balance and disabled trading
+  once the difference passed a limit. The comparison itself was fine. The starting balance was the
+  problem: it was captured once, when the bot launched, and no code ever reset it when a new
+  calendar day began. So the limit wasn't "maximum loss per day", it was "maximum loss since this
+  process started" — and once it tripped, nothing in the code re-enabled trading. It stayed off
+  until someone restarted the bot by hand.</p>
+  <p>This is the mirror image of a bug I wrote about earlier, where a routine restart silently
+  <em>wipes</em> the day's loss counter to zero
+  (<a href="risk-state-in-memory.html">the risk state that only exists in RAM</a>). Here the counter
+  is never wiped at all. Both bugs share a root: the code never decided, explicitly, what event
+  starts a new "day" for the risk counter. A restart, a midnight rollover and a manual reset are
+  three different events, and each needs an answer.</p>
+
+  <div class="article-cta">
+    <p>This is one failure shape out of several I check for. The full checklist — entry-price path
+    and exit/risk-limit path together — is on one page, or I can walk through it against your bot
+    directly.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+
+  <h2>What happened next</h2>
+  <p>The maintainer replied about seven weeks after I filed, apologized for the delay, and
+  confirmed both points publicly. The fix, opened as a pull request, allows only one resting
+  sell-limit at a time, cancels any that sits unfilled past a configurable expiry (30 minutes by
+  default), and resets the daily starting balance when the server day rolls over.</p>
+  <p>It also added something I had not flagged: when the daily loss limit trips, resting orders
+  are now cancelled too. That's the third instance of the same lesson. Before, hitting the limit
+  stopped the bot from placing <em>new</em> orders — but any order already resting could still
+  fill afterwards, after trading was supposedly halted. "Stop trading" has to mean stopping the
+  exposure that already exists, not only the exposure that would be created next.</p>
+
+  <h2>Why "it passed testing" doesn't catch this</h2>
+  <p>A test that places one order and checks the guard blocks a second passes, because it checks
+  positions — the one list the guard knows about. A test that runs a single simulated day never
+  crosses midnight, so the reset that was never written can't fail. Both bugs need a scenario the
+  code's author didn't picture: two pending orders alive at once, or a process running across two
+  days.</p>
+
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>List every place your bot can hold exposure — open positions, resting limit and stop
+    orders, orders in flight, partially filled orders. Then check that each guard counts all of
+    them, not just the one the author was thinking about.</li>
+    <li>Place an entry signal twice in a row without letting the first order fill. Does the bot
+    stack a second order, or does it notice the first is still resting?</li>
+    <li>For any "daily" limit, find the line that starts a new day. If you can't find one, the
+    limit is really "since launch". Then find what re-enables trading after a trip, and whether
+    that's what you actually want.</li>
+    <li>When a loss limit trips, check what happens to orders that are already resting. Halting
+    should cancel them, not just stop creating new ones.</li>
+  </ul>
+
+  <hr>
+  <p>None of this is exotic, and the maintainer's response is what responsible disclosure looks
+  like when it works: a specific report, a fix, and a fix that went a step further than the
+  report. The bug isn't in wanting a duplicate-trade guard or a daily limit. It's in the gap between what the guard
+  was written to count and everything the bot can actually do. Related:
+  <a href="safety-net-that-isnt-there.html">a risk limit that is mathematically incapable of
+  triggering</a>.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
