@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Permanent Halt That Lasts Until the Next Restart — Honest Backtest</title>
+<meta name="description" content="Two bugs from an open-source trading bot audit: a duplicate-trade guard that checks open positions but not resting orders, and a "daily" loss limit that is really since-launch. Plus what happened when the maintainer replied.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The Permanent Halt That Lasts Until the Next Restart</h1>
+    <p class="dek">A drawdown guard exists to stop trading and stay stopped. This one stopped — until the first routine restart, when its own startup code quietly let the account trade again from a lower starting point.</p>
+    <p class="meta">2026-09-26</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>Prop-firm challenges come with hard rules: lose more than a set percentage in a day, or in
+  total, and the account is finished. So traders reach for a small utility that watches the account
+  and enforces the rules for them — when a limit is hit, close everything, raise a shared flag that
+  every other expert advisor on the terminal checks before trading, and stay halted. The one I
+  reviewed was a good idea, cleanly written, with documentation promising that a breach of the
+  maximum drawdown halts trading <em>permanently</em>. It didn't, quite.</p>
+
+  <p><em>Disclosure: I found this by reading the public source, not by running it. I posted it as a
+  comment on the tool's public page, the author replied there, and I'm leaving the product and the
+  author unnamed here.</em></p>
+
+  <h2>The bug: startup undoes the halt</h2>
+  <p>Two things combined. First, the "breached" state — one flag for the daily limit, one for the
+  maximum — lived only in the running program's memory; nothing wrote it anywhere durable and
+  nothing read it back. Second, the startup routine began by unconditionally setting the shared
+  halt flag back to zero, then took a fresh snapshot of "equity at the start of the day" from
+  whatever the account held at that moment.</p>
+  <p>On a prop-firm setup, restarts are routine: a VPS reboot, a terminal update, recompiling the
+  tool, or just detaching and re-attaching it to a chart. So the first restart after a breach did
+  two things at once. It cleared the halt, and it re-anchored the baseline to the already-reduced
+  equity. The account was unblocked at exactly the moment it was closest to blown, and the
+  limits now measured from a lower starting point than the rules allowed.</p>
+  <p>Nothing in the tool's logs would look wrong. From the program's point of view it started
+  cleanly and initialized itself per its own code. The bug is in the gap between what happened
+  before the restart and what the program believes afterwards — and nothing compares the two.</p>
+
+  <div class="article-cta">
+    <p>This is one failure shape out of several I check for. The full checklist — entry-price path
+    and exit/risk-limit path together — is on one page, or I can walk through it against your bot
+    directly.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+
+  <h2>The response: one day, and a detail I hadn't thought of</h2>
+  <p>The author replied the next day, agreed it was a serious catch, and shipped a fixed version
+  within hours of that. The breach state and the day-start snapshot are now saved to a file per
+  account; startup restores them instead of writing zero, and shutting the tool down no longer
+  clears an active breach. A new setting lets you deliberately clear a stored halt when you start
+  a new challenge — because "permanent" needs an explicit, intentional way out, not an accidental
+  one.</p>
+  <p>The author's first reply also included a point I would have missed. The terminal's built-in
+  global variables — the obvious place to store a flag — are deleted after about four weeks without
+  access. A "permanent" halt kept only there would quietly expire if the account sat idle over
+  a holiday. That's why the fix mirrors the state to a file and treats the file as the source of
+  truth. A durable-looking place to store state is not the same as a durable one; where it lives
+  matters as much as whether it's saved.</p>
+
+  <h2>Why "it worked in testing" doesn't catch this</h2>
+  <p>The usual test triggers a breach and confirms trading stops. That passes. The failing
+  scenario needs a second step most tests never take: breach, <em>then remove the tool and put it
+  back</em>. A test suite that runs one session end to end never restarts the process in the
+  middle of the state it is trying to protect.</p>
+
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>Trip your own halt or loss limit on a demo account, then restart the process — and also
+    detach and re-attach the bot, redeploy, and reboot the machine. Does trading stay stopped after
+    every one of those?</li>
+    <li>Read your startup code for anything that writes a "clean" value — zero, false, "not
+    halted", a fresh baseline — before it reads what was stored. Initialization that overwrites
+    before it restores is the whole bug.</li>
+    <li>If a halt is supposed to be permanent, find the deliberate way to clear it. If the only way
+    out is "restart it", the halt is not permanent.</li>
+    <li>Check how long the place you store state keeps it. Some stores expire, get cleared on
+    update, or are per-machine while the bot can run on several.</li>
+  </ul>
+
+  <hr>
+  <p>This is what a good disclosure looks like when the author cares: a specific report, a fix
+  within a day, and a fix that went further than the report. The bug is a common one — I described
+  its cousin in <a href="risk-state-in-memory.html">the risk state that only exists in RAM</a>, where
+  a restart wipes a loss counter — and a related case, where a guard checks the wrong list of
+  exposures, in <a href="wrong-thing-guard.html">the guard that counts the wrong thing</a>. The
+  common lesson: a safety rule is only as strong as the weakest event it has never been tested
+  against, and "the process restarted" is that event more often than anyone expects.</p>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
