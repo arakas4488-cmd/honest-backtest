@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Risk Gate That Never Gets Its Input — Honest Backtest</title>
+<meta name="description" content="Five trading-bot risk limits that were correctly written and never fired, because the number they depend on never arrived: a daily PnL that stays zero, a breaker nobody calls, a position sync that crashes on its first row.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="../index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="../index.html#services">Services</a>
+      <a href="../index.html#cases">Case Studies</a>
+      <a href="./">Blog</a>
+      <a href="../index.html#faq">FAQ</a>
+      <a href="../index.html#about">About</a>
+      <a href="../index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="./">← Back to blog</a>
+    <p class="kicker">Bug Patterns · Live Bot Audits</p>
+    <h1>The Risk Gate That Never Gets Its Input</h1>
+    <p class="dek">A loss limit can be perfectly written and still never fire — because the number it compares against is zero, stale, or never delivered. Five variants of the same bug, including two from my own bot.</p>
+    <p class="meta">2026-10-11</p>
+  </div>
+</div>
+<article class="article">
+  <p>When I review a trading bot's risk code, the first thing I look for is not whether the limit is
+  correct. It's whether the limit ever <em>receives</em> anything. A daily-loss check that compares
+  <code>daily_pnl</code> against a threshold is textbook-correct. If <code>daily_pnl</code> is
+  never updated, it compares zero against the threshold forever and never trips. The gate is
+  there, the tests for the gate pass, and the account is unprotected.</p>
+  <p>Over the last audits this has been the most consistent single pattern: the gate exists and is
+  correct, and the signal feeding it is missing, frozen, or wrong. Five variants below. Three come
+  from public repositories where I filed a normal issue (repositories and authors left unnamed);
+  two are from my own bot.</p>
+  <h2>Variant 1: the number that stays zero</h2>
+  <p>A trading agent gated new orders on a daily loss limit. The gate read a running
+  <code>dailyPnl</code>, and that figure was only ever updated by adding the PnL of a position at
+  the moment it closed. The PnL field on every position was set to zero when the position was
+  created, and nothing else in the file ever changed it. So every close added zero. A day of losses
+  and a day of nothing looked identical to the check, and the limit was reachable in the
+  configuration and unreachable in practice.</p>
+  <h2>Variant 2: the breaker nobody calls</h2>
+  <p>In another bot the main loop correctly checked a circuit-breaker flag and skipped trading when
+  it was set. The flag could only be flipped by two paths. One was a method that records a trade's
+  result, and in the whole tree that method was called only from unit tests. The other, a
+  drawdown check, had no call sites at all, not even in tests. The gate was well built, and the
+  thing that should have set it off was never connected.</p>
+  <h2>Variant 3: the risk manager that never sees a sale</h2>
+  <p>A third bot had two parallel loss-streak mechanisms. One had a method that computed the
+  realized PnL of a sale and paused trading after a streak of losses; it was defined and never
+  called. The other was called only from the buy path, where the profit-and-loss argument is
+  always zero because nothing has been sold yet. Meanwhile the code that actually closed positions
+  computed the real realized PnL correctly, and used it for a notification and for analytics, but
+  never handed it to either risk mechanism. The one number the breaker needed was calculated and
+  then sent elsewhere.</p>
+  <h2>Variant 4: my own bot — the calculation that crashed on its first row</h2>
+  <p>This one was in my own bot, and I only found it by watching a long paper run. The position
+  sync read an attribute with a typo (<code>avgCost</code> instead of the library's
+  <code>averageCost</code>) and raised on every call that included a real portfolio. The whole loop
+  sat inside one <code>try/except</code> that logged the error and moved on. Result: the
+  portfolio-exposure figure showed 0.0% for the entire session, not because exposure was zero, but
+  because the calculation died on the first line of the first portfolio row, every time. The
+  exposure limit existed, was correct, and had never once seen a real number. There happened to be
+  no open positions, so nothing bad happened — luck, not design.</p>
+  <h2>Variant 5: my own bot — reading the result from before it existed</h2>
+  <p>My bot's loss-streak cooldown, which escalates the pause after consecutive losing trades, read
+  each trade's PnL from the decision object at the moment of <em>entering</em> the trade. A trade
+  that hasn't been closed has no PnL yet, so the value was always the default zero and the streak
+  counter could never grow. The escalation logic was correct. It was just reading a field before
+  the data it needed could exist; the fix moved the update to the handler that receives the real
+  realized PnL from the closing fill.</p>
+  <div class="article-cta">
+    <p>This is one failure shape out of several I check for. The full checklist — entry-price path
+    and exit/risk-limit path together — is on one page, or I can walk through it against your bot
+    directly.</p>
+    <a class="btn btn-ghost" href="../checklist.html">Get the safety-net checklist →</a>
+  </div>
+  <h2>Why the tests don't catch it</h2>
+  <p>A unit test for a risk gate sets the input itself: "given a daily PnL of -$500, the limit
+  trips." That passes. It says nothing about whether the live system ever produces that
+  input. The bug lives in the wiring between the gate and the rest of the bot, and wiring is
+  exactly what a gate-in-isolation test skips. Variants 1, 2 and 3 all had a correct gate and a
+  green test for it.</p>
+  <h2>What to check in your own bot</h2>
+  <ul>
+    <li>For every risk limit, find the line that <em>writes</em> the value it reads. If you cannot
+    point to a call on the live path — not in a test — that updates it, the limit is decorative.</li>
+    <li>Log the gate's inputs, not only its decisions. A daily PnL that prints exactly
+    <code>0.0</code> after a day of trading, or an exposure of <code>0.0%</code> with positions
+    open, is the whole bug in one log line.</li>
+    <li>Make it fail loudly. A catch-all <code>try/except</code> around a whole loop turns "the
+    calculation crashed" into "the number is zero". Handle each item separately and surface the
+    error where the gate can see it.</li>
+    <li>Trigger each limit end to end on a demo account. Don't set the input; produce it by
+    actually trading into the loss, then confirm the bot stops.</li>
+    <li>Check where each value is read relative to when it exists. Anything read at entry cannot
+    contain the outcome of the trade.</li>
+  </ul>
+  <hr>
+  <p>The thread running through this and my other write-ups is that a safety net is judged by the
+  event it has never been tested against. Earlier cases covered
+  <a href="risk-state-in-memory.html">risk state that only lives in RAM</a>,
+  <a href="wrong-thing-guard.html">a guard that counts the wrong thing</a> and
+  <a href="permanent-halt-restart.html">a halt that a restart undoes</a>. This one is the quietest:
+  nothing is broken that you can see, because the check runs fine, on a number that was never
+  there.</p>
+</article>
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="../assets/analytics-events.js"></script>
+</body>
+</html>
