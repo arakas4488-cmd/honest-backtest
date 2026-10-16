@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Commission Drag Calculator — Honest Backtest</title>
+<meta name="description" content="Free calculator: how much of your trading edge do commissions and slippage eat? Breakeven win rate and net expectancy per trade, before and after costs.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+.calc{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin:28px 0;}
+@media(max-width:760px){.calc{grid-template-columns:1fr;}}
+.calc fieldset{border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:0;background:var(--paper-alt);}
+.calc legend{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft);padding:0 6px;}
+.calc label{display:block;font-size:14px;margin:12px 0 4px;color:var(--ink);}
+.calc input{width:100%;box-sizing:border-box;padding:9px 10px;font:inherit;font-family:var(--mono);color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:6px;}
+.calc input:focus{outline:2px solid var(--ledger);outline-offset:1px;}
+.calc .hint{font-size:12px;color:var(--ink-soft);margin:10px 0 0;}
+.out{border:1px solid var(--line);border-radius:10px;padding:18px 20px;background:var(--paper-alt);}
+.out .row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:15px;}
+.out .row b{font-family:var(--mono);font-weight:700;white-space:nowrap;}
+.verdict{margin:16px 0 0;padding:14px 16px;border-radius:8px;font-size:15px;line-height:1.5;}
+.verdict.good{background:var(--ledger-soft);color:var(--ledger-deep);}
+.verdict.bad{background:var(--stamp-soft);color:var(--stamp);}
+.verdict.warn{background:var(--paper);border:1px solid var(--line);}
+.neg{color:var(--stamp);}
+table.sens{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:14px;margin:8px 0 24px;}
+table.sens th,table.sens td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--line);}
+table.sens th:first-child,table.sens td:first-child{text-align:left;}
+.cta-box{border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin:32px 0;background:var(--paper-alt);}
+.cta-box .btn{margin:6px 8px 0 0;}
+</style>
+
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="index.html#services">Services</a>
+      <a href="index.html#cases">Case Studies</a>
+      <a href="blog/">Blog</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="index.html#about">About</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="index.html">← Home</a>
+    <p class="kicker">Free Tool</p>
+    <h1>Commission Drag Calculator</h1>
+    <p class="dek">When your stop and target are only a few cents wide, a round-trip commission
+    stops being a rounding error. Enter your trade setup and see the breakeven win rate and
+    expectancy before and after costs.</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>Everything runs in your browser. Nothing is sent anywhere, nothing is stored. The numbers
+  below are examples, not a quote from any broker — replace them with your own fee schedule.</p>
+
+  <div class="calc">
+    <fieldset>
+      <legend>Your setup (per trade)</legend>
+      <label for="shares">Shares</label>
+      <input id="shares" type="number" inputmode="decimal" min="1" step="1" value="100">
+      <label for="stop">Stop distance, $ per share</label>
+      <input id="stop" type="number" inputmode="decimal" min="0" step="0.01" value="0.10">
+      <label for="tp">Take-profit distance, $ per share</label>
+      <input id="tp" type="number" inputmode="decimal" min="0" step="0.01" value="0.15">
+      <label for="wr">Win rate, %</label>
+      <input id="wr" type="number" inputmode="decimal" min="0" max="100" step="1" value="50">
+    </fieldset>
+    <fieldset>
+      <legend>Costs (example values)</legend>
+      <label for="cps">Commission, $ per share per side</label>
+      <input id="cps" type="number" inputmode="decimal" min="0" step="0.0005" value="0.005">
+      <label for="cmin">Minimum commission, $ per order</label>
+      <input id="cmin" type="number" inputmode="decimal" min="0" step="0.05" value="1.00">
+      <label for="slip">Slippage, $ per share per side</label>
+      <input id="slip" type="number" inputmode="decimal" min="0" step="0.005" value="0">
+      <p class="hint">Entry and exit are two orders, so costs are charged twice. Exchange and
+      regulatory fees and any per-order cap are not modelled.</p>
+    </fieldset>
+  </div>
+
+  <div class="out" id="out" aria-live="polite"></div>
+
+  <h2>Same setup, different win rates</h2>
+  <table class="sens" id="sens"></table>
+
+  <h2>How it is calculated</h2>
+  <ul>
+    <li>Risk $ = shares × stop. Reward $ = shares × take-profit.</li>
+    <li>Round-trip cost = 2 × max(shares × commission, minimum) + 2 × shares × slippage.</li>
+    <li>Net win = reward − cost. Net loss = risk + cost.</li>
+    <li>Breakeven win rate = net loss ÷ (net win + net loss).</li>
+    <li>Expectancy = win rate × net win − (1 − win rate) × net loss, shown in dollars and as a
+    multiple of the trade's nominal risk (R).</li>
+  </ul>
+  <p>Where the idea comes from: in my own trading bot, the round-trip commission
+  was roughly the same size as the stop/target width, and an honest backtest with commission
+  included turned a plausible-looking expectancy into a clearly negative one. This tool lets you
+  check your own numbers in ten seconds.</p>
+
+  <div class="cta-box">
+    <strong>Your numbers look worse than you expected?</strong>
+    <p>The calculator only covers costs. A full audit also checks the code path that sets your
+    stop and target and the risk limits, and re-runs the backtest with realistic execution.</p>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">See audit packages</a>
+    <a class="btn btn-ghost" href="checklist.html">Or use the free 8-point checklist</a>
+  </div>
+</article>
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="assets/analytics-events.js"></script>
+
+<script>
+function computeDrag(i){
+  var shares=i.shares, stop=i.stop, tp=i.tp, p=i.wr/100;
+  var side=Math.max(shares*i.cps, shares>0?i.cmin:0);
+  var cost=2*side+2*shares*i.slip;
+  var risk=shares*stop, reward=shares*tp;
+  var netWin=reward-cost, netLoss=risk+cost;
+  var expectancy=function(pp){return pp*netWin-(1-pp)*netLoss;};
+  return {
+    cost:cost, risk:risk, reward:reward, netWin:netWin, netLoss:netLoss,
+    costPctOfRisk:risk>0?cost/risk*100:NaN,
+    grossRR:stop>0?tp/stop:NaN,
+    netRR:netLoss>0?netWin/netLoss:NaN,
+    beGross:risk/(reward+risk),
+    beNet:(netWin+netLoss)>0?netLoss/(netWin+netLoss):NaN,
+    grossExp:p*reward-(1-p)*risk,
+    netExp:expectancy(p),
+    netExpR:risk>0?expectancy(p)/risk:NaN,
+    expectancy:expectancy
+  };
+}
+(function(){
+  if(typeof document==='undefined')return;
+  var ids=['shares','stop','tp','wr','cps','cmin','slip'];
+  function val(id){return parseFloat(document.getElementById(id).value);}
+  function usd(x){return (x<0?'\u2212$':'$')+Math.abs(x).toFixed(2);}
+  function pct(x){return x.toFixed(1)+'%';}
+  function render(){
+    var i={}, k;
+    for(k=0;k<ids.length;k++){i[ids[k]]=val(ids[k]);}
+    var out=document.getElementById('out'), sens=document.getElementById('sens');
+    var bad=ids.some(function(id){return !isFinite(i[id])||i[id]<0;})||i.shares<1||i.stop<=0||i.tp<=0||i.wr>100;
+    if(bad){out.innerHTML='<p>Enter positive numbers for shares, stop and take-profit, and a win rate between 0 and 100.</p>';sens.innerHTML='';return;}
+    var r=computeDrag(i), verdict, cls;
+    if(r.netWin<=0){cls='bad';verdict='Your take-profit does not even cover the round-trip cost: every winning trade loses money.';}
+    else if(r.grossExp>0&&r.netExp<=0){cls='bad';verdict='Positive edge before costs, negative after. Commissions and slippage take the entire edge.';}
+    else if(r.grossExp<=0){cls='warn';verdict='Negative expectancy even before costs. The setup itself needs work, not the fee schedule.';}
+    else{cls='good';verdict='Still positive after costs at this win rate. The net breakeven win rate above is the number you have to beat with some margin.';}
+    out.innerHTML=
+      '<div class="row"><span>Round-trip cost</span><b>'+usd(r.cost)+'</b></div>'+
+      '<div class="row"><span>Cost as % of your risk</span><b>'+pct(r.costPctOfRisk)+'</b></div>'+
+      '<div class="row"><span>Reward : risk, gross \u2192 net</span><b>'+r.grossRR.toFixed(2)+' \u2192 '+(r.netWin<=0?'no profit':r.netRR.toFixed(2))+'</b></div>'+
+      '<div class="row"><span>Breakeven win rate, gross \u2192 net</span><b>'+pct(r.beGross*100)+' \u2192 '+(r.beNet>=1?'unreachable':pct(r.beNet*100))+'</b></div>'+
+      '<div class="row"><span>Expectancy per trade, gross</span><b class="'+(r.grossExp<0?'neg':'')+'">'+usd(r.grossExp)+'</b></div>'+
+      '<div class="row"><span>Expectancy per trade, net</span><b class="'+(r.netExp<0?'neg':'')+'">'+usd(r.netExp)+' ('+r.netExpR.toFixed(2)+' R)</b></div>'+
+      '<p class="verdict '+cls+'">'+verdict+'</p>';
+    var h='<tr><th>Win rate</th><th>Net / trade</th><th>Net R</th></tr>';
+    [30,40,50,60,70].forEach(function(w){
+      var e=r.expectancy(w/100), c=e<0?'neg':'';
+      h+='<tr><td>'+w+'%</td><td class="'+c+'">'+usd(e)+'</td><td class="'+c+'">'+(e/r.risk).toFixed(2)+'</td></tr>';
+    });
+    sens.innerHTML=h;
+  }
+  var first=true;
+  ids.forEach(function(id){document.getElementById(id).addEventListener('input',function(){
+    render();
+    if(first&&typeof gtag==='function'){first=false;gtag('event','calculator_use',{tool:'commission_drag'});}
+  });});
+  render();
+})();
+</script>
+
+</body>
+</html>
