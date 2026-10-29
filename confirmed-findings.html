@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-0332EXMNZG"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-0332EXMNZG');
+</script>
+<!-- Whop pixel -->
+<script>!function(w,d,s,u,n,a,b){if(w[n])return;a=w[n]={q:[],t:+new Date,s:[],o:u,track:function(){a.q.push([+new Date].concat([].slice.call(arguments)))},setScope:function(){a.s=[].slice.call(arguments).filter(function(x){return typeof x==="string"});a.q.push([+new Date,"setScope"].concat(a.s))},scope:function(){var c=[].slice.call(arguments);return{track:function(){a.q.push([+new Date].concat([].slice.call(arguments)).concat([{__scope:c}]))}}}};b=d.createElement(s);b.async=1;b.src=u+"/s.js";d.getElementsByTagName(s)[0].parentNode.insertBefore(b,d.getElementsByTagName(s)[0])}(window,document,"script","https://t.whop.tw","whop");whop.setScope("biz_3nliSOcGgTLOOI");whop.track("page");</script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Confirmed Findings — Honest Backtest</title>
+<meta name="description" content="Four bugs I reported in open-source trading bots that the maintainers confirmed and fixed. Each links to the issue and the fix.">
+<link rel="canonical" href="https://honest-backtest.com/confirmed-findings.html">
+<meta property="og:site_name" content="Honest Backtest">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Confirmed Findings — Honest Backtest">
+<meta property="og:description" content="Four bugs I reported in open-source trading bots that the maintainers confirmed and fixed. Each links to the issue and the fix.">
+<meta property="og:url" content="https://honest-backtest.com/confirmed-findings.html">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%230a1c2b'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='28' font-weight='bold' fill='%234dd9d4' text-anchor='middle'%3EHB%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap nav">
+    <a class="brand" href="index.html">
+      <span class="mark">HB</span>
+      Honest Backtest
+    </a>
+    <nav class="links">
+      <a href="index.html#services">Services</a>
+      <a href="index.html#cases">Case Studies</a>
+      <a href="blog/">Blog</a>
+      <a href="index.html#faq">FAQ</a>
+      <a href="index.html#about">About</a>
+      <a href="index.html#contact">Contact</a>
+    </nav>
+    <a class="btn btn-primary" href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Get an Audit</a>
+  </div>
+</header>
+
+
+<div class="article-header">
+  <div class="wrap">
+    <a class="back-link" href="index.html#about">← Back to home</a>
+    <p class="kicker">Track record</p>
+    <h1>Confirmed Findings</h1>
+    <p class="dek">Four bugs I found by reading open-source trading-bot code, reported publicly, and
+    that the maintainers confirmed and fixed. Every item links to the original report and to the fix,
+    so you can check it yourself instead of taking my word for it.</p>
+  </div>
+</div>
+
+<article class="article">
+  <p>I review trading-bot code for one class of problem: code that behaves differently than its
+  README or its backtest claims it does. The method is the same each time. I read the code, open a
+  public issue describing what I found and why it matters, and leave the fix to the maintainer.
+  I do not exploit anything.</p>
+  <p>Not every report gets a reply. These four did. Dates are taken from the linked GitHub pages.</p>
+
+  <section class="case">
+    <p class="tag">Missing slippage clamp</p>
+    <h3>1. A slippage guard that stopped guarding at 100%</h3>
+    <p><strong>Project:</strong> <a href="https://github.com/0xfnzero/sol-trade-sdk" target="_blank" rel="noopener">0xfnzero/sol-trade-sdk</a></p>
+    <p>The Bonk/LetsBonk slippage helpers did not apply the maximum-slippage clamp that the PumpFun path already used. At 100% slippage the minimum accepted output became zero, which means no price protection at all, and one helper could divide by zero.</p>
+    <p class="links-line"><strong>Report:</strong> <a href="https://github.com/0xfnzero/sol-trade-sdk/issues/111" target="_blank" rel="noopener">issue #111</a> (Aug 5, 2026)
+    &nbsp;·&nbsp; <strong>Fix:</strong> <a href="https://github.com/0xfnzero/sol-trade-sdk/pull/112" target="_blank" rel="noopener">PR #112, merged</a> (Aug 6, 2026)</p>
+  </section>
+  <section class="case">
+    <p class="tag">Stale price in the exit path</p>
+    <h3>2. A stop-loss that priced its own exit off the entry price</h3>
+    <p><strong>Project:</strong> <a href="https://github.com/chainstacklabs/pumpfun-bonkfun-bot" target="_blank" rel="noopener">chainstacklabs/pumpfun-bonkfun-bot</a></p>
+    <p>The exit sell passed the position's entry price into the seller, and that value is the slippage floor. An exit fires precisely when the price has moved away from entry, so the floor was priced off the wrong number. Separately, position monitoring could stop silently after a failed sell.</p>
+    <p class="links-line"><strong>Report:</strong> <a href="https://github.com/chainstacklabs/pumpfun-bonkfun-bot/issues/189" target="_blank" rel="noopener">issue #189</a> (Aug 5, 2026)
+    &nbsp;·&nbsp; <strong>Fix:</strong> <a href="https://github.com/chainstacklabs/pumpfun-bonkfun-bot/pull/193" target="_blank" rel="noopener">PR #193, merged</a> (Aug 24, 2026)</p>
+  </section>
+  <section class="case">
+    <p class="tag">Wrong aggregation</p>
+    <h3>3. A dashboard that added returns instead of compounding them</h3>
+    <p><strong>Project:</strong> <a href="https://github.com/thanhphan20/freq-trading-bot" target="_blank" rel="noopener">thanhphan20/freq-trading-bot</a></p>
+    <p>The dashboard aggregator summed each trade's profit percentage instead of compounding it, so total return diverged from reality as trades accumulated. The Sharpe ratio was computed on raw dollar P&amp;L rather than on a return series.</p>
+    <p class="links-line"><strong>Report:</strong> <a href="https://github.com/thanhphan20/freq-trading-bot/issues/7" target="_blank" rel="noopener">issue #7</a> (Aug 4, 2026)
+    &nbsp;·&nbsp; <strong>Fix:</strong> <a href="https://github.com/thanhphan20/freq-trading-bot/pull/9" target="_blank" rel="noopener">PR #9, merged</a> (Sep 16, 2026)</p>
+  </section>
+  <section class="case">
+    <p class="tag">A crash that removes the safety net</p>
+    <h3>4. An exception that could take the stop-loss down with it</h3>
+    <p><strong>Project:</strong> <a href="https://github.com/titouannwtt/freqtrade-ultimate" target="_blank" rel="noopener">titouannwtt/freqtrade-ultimate</a></p>
+    <p>One strategy retried a data fetch twice, but the third attempt sat outside any error handling, so a routine failure of the unofficial data source interrupted the whole bot cycle. The strategy's stop-loss only exists while the process is running, so a crash with a position open leaves that position unprotected.</p>
+    <p class="links-line"><strong>Report:</strong> <a href="https://github.com/titouannwtt/freqtrade-ultimate/issues/38" target="_blank" rel="noopener">issue #38</a> (Aug 3, 2026)
+    &nbsp;·&nbsp; <strong>Fix:</strong> <a href="https://github.com/titouannwtt/freqtrade-ultimate/commit/38c377763" target="_blank" rel="noopener">commit 38c3777</a> (Aug 25, 2026)</p>
+  </section>
+
+  <h2>What I did and did not do</h2>
+  <ul>
+    <li>I found each of these by static reading of the source. The fixes were written and merged by
+    the maintainers, not by me.</li>
+    <li>The issue text, the fix, and the merge date are on GitHub for each item; none of this relies on
+    private correspondence.</li>
+    <li>I describe what the code did at the time of the report. I am not making claims about money
+    lost or gained by anyone's live trading.</li>
+  </ul>
+
+  <h2>Want the same read on your bot?</h2>
+  <p>The <a href="https://whop.com/honest-backtest/quick-risk-check/" target="_blank" rel="noopener">Quick Risk Check ($48)</a>
+  covers stop-loss, position sizing, cooldowns, exposure limits and the kill switch, and returns one pass/partial/fail line per item.
+  For the whole bot, see the <a href="https://whop.com/honest-backtest/full-bot-audit/" target="_blank" rel="noopener">Full Bot Audit ($298)</a>.
+  You can also run through the <a href="checklist.html">free Safety-Net Checklist</a> yourself first.</p>
+</article>
+
+
+<div class="contact-band" id="contact">
+  <div class="wrap">
+    <p class="kicker">Contact</p>
+    <h2>Get in touch</h2>
+    <div class="contact-grid">
+      <div class="contact-col">
+        <strong>Email</strong>
+        <a href="mailto:honest.audit48@gmail.com">honest.audit48@gmail.com</a>
+      </div>
+      <div class="contact-col">
+        <strong>Order an audit</strong>
+        <a href="https://whop.com/honest-backtest/" target="_blank" rel="noopener">Whop store →</a>
+      </div>
+      <div class="contact-col">
+        <strong>Elsewhere</strong>
+        <a href="https://www.linkedin.com/in/valerii-sakara-b7b53826a" target="_blank" rel="noopener">LinkedIn →</a>
+        <a href="https://www.upwork.com/freelancers/~0172b73e1bdd2510b4" target="_blank" rel="noopener">Upwork →</a>
+      </div>
+    </div>
+    <p class="disclaimer">Not investment advice. Honest Backtest provides technical code review and
+    backtest recalculation only — an honest read on what the code and the numbers actually show,
+    not a recommendation to trade.<br>Photography via Unsplash.</p>
+  </div>
+</div>
+
+<script src="assets/analytics-events.js"></script>
+</body>
+</html>
